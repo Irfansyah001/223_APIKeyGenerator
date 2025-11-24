@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>KeyVault • Admin Console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    :root {
+      --bg: #020617;
+      --bg-card: rgba(15, 23, 42, 0.96);
+      --accent: #22c55e;
+      --accent-soft: rgba(34, 197, 94, 0.18);
+      --accent-2: #38bdf8;
+      --border-subtle: rgba(148, 163, 184, 0.5);
+      --text-main: #e5e7eb;
+      --text-soft: #9ca3af;
+      --danger: #f97373;
+    }
+
+    * { box-sizing: border-box; margin:0; padding:0; }
+
+    body {
+      min-height: 100vh;
+      font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, #0f172a, #020617);
+      color: var(--text-main);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .shell { width:100%; max-width:1000px; }
+
+    .brand {
+      display:flex; align-items:center; gap:10px;
+      margin-bottom:18px;
+    }
+
+    .brand-logo {
+      width:40px; height:40px;
+      border-radius:999px;
+      background:radial-gradient(circle at 30% 20%, #4ade80, #22c55e, #0ea5e9);
+      display:flex; align-items:center; justify-content:center;
+      color:#0b1120; font-weight:800; font-size:20px;
+      box-shadow:0 0 20px rgba(34,197,94,0.5);
+    }
+
+    .brand-title {
+      font-weight:600; letter-spacing:0.04em;
+      font-size:14px; color:var(--text-soft); text-transform:uppercase;
+    }
+
+    .card {
+      background:var(--bg-card);
+      border-radius:24px;
+      border:1px solid rgba(148,163,184,0.3);
+      box-shadow:
+        0 18px 40px rgba(15, 23, 42, 0.9),
+        0 0 0 1px rgba(15, 23, 42, 0.8);
+      padding:24px 24px 22px;
+      backdrop-filter:blur(18px);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .card::before {
+      content:""; position:absolute; inset:-40%;
+      background:
+        radial-gradient(circle at 0 0, rgba(56,189,248,0.2), transparent 45%),
+        radial-gradient(circle at 100% 100%, rgba(34,197,94,0.18), transparent 45%);
+      opacity:0.9; mix-blend-mode:screen; pointer-events:none;
+    }
+
+    .card-inner { position:relative; z-index:1; }
+
+    .card-header {
+      display:flex; justify-content:space-between; gap:16px;
+      flex-wrap:wrap; margin-bottom:18px;
+    }
+
+    .card-header h1 {
+      font-size:20px; font-weight:600;
+      display:flex; align-items:center; gap:8px;
+    }
+
+    .badge {
+      font-size:11px; text-transform:uppercase;
+      padding:2px 10px; border-radius:999px;
+      border:1px solid var(--accent-soft);
+      color:var(--accent-2);
+      background:rgba(15,23,42,0.7);
+    }
+
+    .subtitle {
+      margin-top:4px; font-size:13px; color:var(--text-soft);
+      max-width:420px;
+    }
+
+    .tabs {
+      display:flex; gap:8px; margin-bottom:18px;
+      border-bottom:1px solid rgba(148,163,184,0.35);
+      padding-bottom:6px;
+      flex-wrap:wrap;
+    }
+
+    .tab-btn {
+      border:none; background:transparent; cursor:pointer;
+      padding:6px 12px; border-radius:999px;
+      font-size:13px; color:var(--text-soft);
+      display:inline-flex; align-items:center; gap:6px;
+      transition:background 0.15s, color 0.15s;
+    }
+
+    .tab-btn[data-active="true"] {
+      background:var(--accent-soft);
+      color:var(--accent);
+    }
+
+    .tab-label-chip {
+      font-size:10px;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.6);
+      color:var(--accent-2);
+    }
+
+    .grid {
+      display:grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+      gap:18px;
+    }
+
+    @media(max-width:900px) {
+      .grid { grid-template-columns:minmax(0,1fr); }
+    }
+
+    .panel { display:none; }
+    .panel[data-active="true"] { display:block; }
+
+    .field { margin-bottom:10px; }
+
+    .label {
+      font-size:12px; text-transform:uppercase;
+      letter-spacing:0.08em; color:var(--text-soft);
+      margin-bottom:3px;
+    }
+
+    .input {
+      width:100%;
+      border-radius:999px;
+      border:1px solid var(--border-subtle);
+      background:rgba(15,23,42,0.9);
+      padding:8px 12px;
+      font-size:13px;
+      color:var(--text-main);
+      outline:none;
+      transition:border 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+
+    .input:focus {
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px rgba(34,197,94,0.35);
+      background:rgba(15,23,42,0.98);
+    }
+
+    .helper {
+      font-size:11px; color:var(--text-soft); margin-top:2px;
+    }
+
+    .btn-row { display:flex; gap:8px; align-items:center; margin-top:8px; }
+
+    .btn-primary {
+      border-radius:999px; border:none;
+      cursor:pointer; padding:8px 18px;
+      font-size:13px; font-weight:500;
+      color:#0b1120;
+      background:linear-gradient(135deg, var(--accent), #a3e635);
+      display:inline-flex; align-items:center; gap:8px;
+      box-shadow:0 12px 24px rgba(34,197,94,0.55);
+      transition:transform 0.12s, box-shadow 0.12s;
+    }
+
+    .btn-primary:active {
+      transform:translateY(1px);
+      box-shadow:0 6px 14px rgba(34,197,94,0.48);
+    }
+
+    .btn-ghost {
+      border-radius:999px;
+      border:1px solid rgba(148,163,184,0.8);
+      background:transparent;
+      color:var(--text-soft);
+      padding:7px 14px;
+      font-size:12px;
+      cursor:pointer;
+      display:inline-flex; align-items:center; gap:6px;
+    }
+
+    .btn-ghost:hover {
+      border-color:var(--accent-2);
+      color:var(--accent-2);
+      background:rgba(15,23,42,0.7);
+    }
+
+    .status {
+      font-size:11px; margin-left:auto; color:var(--text-soft);
+    }
+
+    .status[data-type="success"] { color:var(--accent); }
+    .status[data-type="error"] { color:var(--danger); }
+
+    .table-card {
+      border-radius:16px;
+      border:1px solid rgba(148,163,184,0.35);
+      background:rgba(15,23,42,0.85);
+      padding:12px 12px 10px;
+      margin-bottom:12px;
+    }
+
+    .table-title {
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:0.08em;
+      color:var(--text-soft);
+      margin-bottom:6px;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:11px;
+    }
+
+    thead { color:var(--text-soft); }
+    th, td {
+      padding:6px 4px;
+      border-bottom:1px solid rgba(30,41,59,0.8);
+      text-align:left;
+      white-space:nowrap;
+    }
+
+    tbody tr:last-child td { border-bottom:none; }
+
+    .pill-status {
+      display:inline-flex; align-items:center; gap:5px;
+      border-radius:999px;
+      padding:2px 8px;
+      font-size:10px;
+      border:1px solid rgba(148,163,184,0.7);
+    }
+
+    .pill-status[data-state="active"] {
+      border-color:var(--accent);
+      color:var(--accent);
+      background:var(--accent-soft);
+    }
+
+    .pill-status[data-state="inactive"] {
+      border-color:var(--danger);
+      color:var(--danger);
+      background:rgba(248,113,113,0.1);
+    }
+
+    .small-link {
+      font-size:11px; color:var(--accent-2); cursor:pointer;
+    }
+
+    .small-link:hover { text-decoration:underline; }
+
+    .muted {
+      font-size:11px; color:var(--text-soft);
+      margin-top:6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="brand">
+      <div class="brand-logo">K</div>
+      <div>
+        <div class="brand-title">KeyVault • Admin Console</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-inner">
+        <header class="card-header">
+          <div>
+            <h1>Panel Admin</h1>
+            <p class="subtitle">
+              Kelola admin, lihat daftar user dan API key yang sudah dibuat.
+              Endpoint sensitif dilindungi dengan token <strong>Bearer</strong>.
+            </p>
+          </div>
+          <div style="text-align:right; font-size:11px; color:var(--text-soft);">
+            <div>Mode: <span style="color:var(--accent); font-weight:500;">Secure</span></div>
+            <div><a href="/" style="color:var(--accent-2); text-decoration:none;">← Kembali ke API Key Generator</a></div>
+          </div>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab-btn" data-tab="login" data-active="true">
+            Login Admin
+          </button>
+          <button class="tab-btn" data-tab="register">
+            Registrasi Admin
+            <span class="tab-label-chip">baru</span>
+          </button>
+          <button class="tab-btn" data-tab="dashboard">
+            Dashboard
+          </button>
+        </div>
+
+        <div class="grid">
+          <!-- LEFT: forms (login / register) -->
+          <div>
+            <!-- LOGIN PANEL -->
+            <section class="panel" id="panel-login" data-active="true">
+              <form id="form-login">
+                <div class="field">
+                  <label class="label" for="login-email">Email</label>
+                  <input id="login-email" class="input" type="email" placeholder="admin@example.com" required />
+                </div>
+                <div class="field">
+                  <label class="label" for="login-password">Password</label>
+                  <input id="login-password" class="input" type="password" placeholder="******" required />
+                </div>
+                <div class="btn-row">
+                  <button type="submit" class="btn-primary">Login</button>
+                  <span class="status" id="status-login">Masuk dengan akun admin yang sudah terdaftar.</span>
+                </div>
+                <p class="muted">
+                  Belum punya akun?
+                  <span class="small-link" data-switch-tab="register">Daftar sebagai admin baru</span>.
+                </p>
+              </form>
+            </section>
+
+            <!-- REGISTER PANEL -->
+            <section class="panel" id="panel-register" data-active="false">
+              <form id="form-register">
+                <div class="field">
+                  <label class="label" for="reg-email">Email</label>
+                  <input id="reg-email" class="input" type="email" placeholder="admin@example.com" required />
+                  <p class="helper">Gunakan email kampus / resmi jika memungkinkan.</p>
+                </div>
+                <div class="field">
+                  <label class="label" for="reg-password">Password</label>
+                  <input id="reg-password" class="input" type="password" placeholder="Min. 8 karakter" required />
+                </div>
+                <div class="field">
+                  <label class="label" for="reg-confirm">Konfirmasi Password</label>
+                  <input id="reg-confirm" class="input" type="password" placeholder="Ulangi password" required />
+                </div>
+
+                <div class="btn-row">
+                  <button type="submit" class="btn-primary">Daftar Admin</button>
+                  <span class="status" id="status-register">Buat akun admin baru.</span>
+                </div>
+                <p class="muted">
+                  Sudah punya akun?
+                  <span class="small-link" data-switch-tab="login">Kembali ke halaman login</span>.
+                </p>
+              </form>
+            </section>
+
+            <!-- DASHBOARD INFO (teks kecil di kiri) -->
+            <section class="panel" id="panel-dashboard-info" data-active="false">
+              <p class="muted">
+                Setelah login, token admin akan disimpan di <code>localStorage</code> sebagai
+                <code>adminToken</code>. Token ini dikirim otomatis pada permintaan ke
+                <code>/api/admin/users</code> dan <code>/api/admin/api-keys</code>.
+              </p>
+              <p class="muted" style="margin-top:6px;">
+                Tombol <strong>Logout</strong> akan menghapus token dan mengunci kembali dashboard.
+              </p>
+            </section>
+          </div>
+
+          <!-- RIGHT: dashboard (tables) -->
+          <div>
+            <section class="panel" id="panel-dashboard" data-active="false">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="font-size:13px; color:var(--text-soft);">
+                  Status sesi:
+                  <span id="session-status" style="color:var(--danger); font-weight:500;">Belum login</span>
+                </div>
+                <button type="button" class="btn-ghost" id="btn-logout" disabled>
+                  Logout
+                </button>
+              </div>
+
+              <div class="table-card">
+                <div class="table-title">
+                  <span>Daftar User</span>
+                  <span class="small-link" id="btn-refresh-users">Refresh</span>
+                </div>
+                <div style="max-height:160px; overflow:auto;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Nama</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Total Key</th>
+                        <th>Active Key</th>
+                        <th>Dibuat</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tbody-users">
+                      <tr>
+                        <td colspan="7" style="text-align:center; color:var(--text-soft);">
+                          Belum ada data. Login sebagai admin lalu klik "Refresh".
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="table-card">
+                <div class="table-title">
+                  <span>Daftar API Keys</span>
+                  <span class="small-link" id="btn-refresh-keys">Refresh</span>
+                </div>
+                <div style="max-height:180px; overflow:auto;">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>API Key</th>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Dibuat</th>
+                        <th>Expires</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tbody-keys">
+                      <tr>
+                        <td colspan="7" style="text-align:center; color:var(--text-soft);">
+                          Belum ada data. Login sebagai admin lalu klik "Refresh".
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Util Token ----------
+    const TOKEN_KEY = 'adminToken';
+
+    function saveToken(token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    }
+
+    function getToken() {
+      return localStorage.getItem(TOKEN_KEY);
+    }
+
+    function clearToken() {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+
+    // ---------- Tab Handling ----------
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const panelLogin = document.getElementById('panel-login');
+    const panelRegister = document.getElementById('panel-register');
+    const panelDashboard = document.getElementById('panel-dashboard');
+    const panelDashboardInfo = document.getElementById('panel-dashboard-info');
+
+    function setActiveTab(tabName) {
+      tabButtons.forEach(btn => {
+        btn.dataset.active = (btn.dataset.tab === tabName) ? 'true' : 'false';
+      });
+
+      panelLogin.dataset.active = (tabName === 'login') ? 'true' : 'false';
+      panelRegister.dataset.active = (tabName === 'register') ? 'true' : 'false';
+
+      const dashboardActive = (tabName === 'dashboard');
+      panelDashboard.dataset.active = dashboardActive ? 'true' : 'false';
+      panelDashboardInfo.dataset.active = dashboardActive ? 'true' : 'false';
+    }
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.tab;
+        if (name === 'dashboard' && !getToken()) {
+          alert('Silakan login sebagai admin dulu.');
+          setActiveTab('login');
+          return;
+        }
+        setActiveTab(name);
+      });
+    });
+
+    document.querySelectorAll('[data-switch-tab]').forEach(el => {
+      el.addEventListener('click', () => {
+        const target = el.getAttribute('data-switch-tab');
+        setActiveTab(target);
+      });
+    });
+
+    // ---------- Status elements ----------
+    const statusLogin = document.getElementById('status-login');
+    const statusRegister = document.getElementById('status-register');
+    const sessionStatus = document.getElementById('session-status');
+    const btnLogout = document.getElementById('btn-logout');
+
+    function setStatus(el, type, text) {
+      el.dataset.type = type || '';
+      el.textContent = text;
+    }
+
+    function updateSessionUI() {
+      const token = getToken();
+      if (token) {
+        sessionStatus.textContent = 'Token aktif';
+        sessionStatus.style.color = '#22c55e';
+        btnLogout.disabled = false;
+      } else {
+        sessionStatus.textContent = 'Belum login';
+        sessionStatus.style.color = '#f97373';
+        btnLogout.disabled = true;
+      }
+    }
+
+    // ---------- Forms ----------
+    const formLogin = document.getElementById('form-login');
+    const formRegister = document.getElementById('form-register');
+
+    formRegister.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setStatus(statusRegister, '', 'Mengirim permintaan registrasi…');
+
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const confirmPassword = document.getElementById('reg-confirm').value;
+
+      if (password !== confirmPassword) {
+        setStatus(statusRegister, 'error', 'Konfirmasi password tidak sama.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, confirmPassword })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Gagal registrasi admin.');
+        }
+
+        setStatus(statusRegister, 'success', 'Admin berhasil didaftarkan. Silakan login.');
+        // otomatis switch ke tab login & isi email
+        document.getElementById('login-email').value = email;
+        setTimeout(() => setActiveTab('login'), 800);
+      } catch (err) {
+        setStatus(statusRegister, 'error', err.message);
+      }
+    });
+
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      setStatus(statusLogin, '', 'Mengirim permintaan login…');
+
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Login gagal.');
+        }
+
+        saveToken(data.token);
+        updateSessionUI();
+        setStatus(statusLogin, 'success', 'Login berhasil. Membuka dashboard…');
+        setActiveTab('dashboard');
+        await Promise.all([loadUsers(), loadApiKeys()]);
+      } catch (err) {
+        clearToken();
+        updateSessionUI();
+        setStatus(statusLogin, 'error', err.message);
+      }
+    });
+
+    btnLogout.addEventListener('click', () => {
+      clearToken();
+      updateSessionUI();
+      setActiveTab('login');
+    });
+
+    // ---------- Fetch helpers ----------
+    async function authGet(url) {
+      const token = getToken();
+      if (!token) throw new Error('Belum login sebagai admin.');
+      const res = await fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.status === 401) {
+        clearToken();
+        updateSessionUI();
+        throw new Error('Token admin tidak valid atau sudah kedaluwarsa.');
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Permintaan gagal.');
+      }
+      return data;
+    }
+
+    // ---------- Load tables ----------
+    const tbodyUsers = document.getElementById('tbody-users');
+    const tbodyKeys = document.getElementById('tbody-keys');
+    const btnRefreshUsers = document.getElementById('btn-refresh-users');
+    const btnRefreshKeys = document.getElementById('btn-refresh-keys');
+
+    function renderUsers(users) {
+      if (!users || users.length === 0) {
+        tbodyUsers.innerHTML =
+          '<tr><td colspan="7" style="text-align:center; color:var(--text-soft);">Belum ada user yang membuat API key.</td></tr>';
+        return;
+      }
+      tbodyUsers.innerHTML = users.map(u => `
+        <tr>
+          <td>${u.id}</td>
+          <td>${u.first_name} ${u.last_name}</td>
+          <td>${u.email}</td>
+          <td>
+            <span class="pill-status" data-state="${u.status === 'active' ? 'active' : 'inactive'}">
+              ${u.status}
+            </span>
+          </td>
+          <td>${u.total_keys}</td>
+          <td>${u.active_keys}</td>
+          <td>${new Date(u.created_at).toLocaleString('id-ID')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderApiKeys(keys) {
+      if (!keys || keys.length === 0) {
+        tbodyKeys.innerHTML =
+          '<tr><td colspan="7" style="text-align:center; color:var(--text-soft);">Belum ada API key.</td></tr>';
+        return;
+      }
+
+      const now = new Date();
+      tbodyKeys.innerHTML = keys.map(k => {
+        let state = 'active';
+        if (k.expires_at && new Date(k.expires_at) < now) {
+          state = 'inactive';
+        }
+        const expires = k.expires_at
+          ? new Date(k.expires_at).toLocaleString('id-ID')
+          : 'Tidak kadaluarsa';
+
+        return `
+          <tr>
+            <td>${k.id}</td>
+            <td style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
+              ${k.api_key}
+            </td>
+            <td>${k.first_name || ''} ${k.last_name || ''}</td>
+            <td>${k.email || '-'}</td>
+            <td>
+              <span class="pill-status" data-state="${state}">
+                ${state}
+              </span>
+            </td>
+            <td>${new Date(k.created_at).toLocaleString('id-ID')}</td>
+            <td>${expires}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function loadUsers() {
+      try {
+        const data = await authGet('/api/admin/users');
+        renderUsers(data.users || []);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadApiKeys() {
+      try {
+        const data = await authGet('/api/admin/api-keys');
+        renderApiKeys(data.apiKeys || []);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    btnRefreshUsers.addEventListener('click', loadUsers);
+    btnRefreshKeys.addEventListener('click', loadApiKeys);
+
+    // ---------- Init on page load ----------
+    (function init() {
+      if (getToken()) {
+        updateSessionUI();
+        // langsung buka dashboard & load data
+        setActiveTab('dashboard');
+        Promise.all([loadUsers(), loadApiKeys()]).catch(() => {});
+      } else {
+        updateSessionUI();
+        setActiveTab('login');
+      }
+    })();
+  </script>
+</body>
+</html>
