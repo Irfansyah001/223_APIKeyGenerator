@@ -316,6 +316,103 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
+// --- Middleware untuk proteksi endpoint admin ---
+function authAdmin(req, res, next) {
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : null;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Token admin diperlukan.' });
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    // Simpan info admin di request (bisa dipakai di handler)
+    req.admin = { id: payload.id, email: payload.email };
+    next();
+  } catch (err) {
+    console.error('Error verifikasi token admin:', err);
+    return res
+      .status(401)
+      .json({ error: 'Token admin tidak valid atau sudah kedaluwarsa.' });
+  }
+}
+
+// =============================
+// GET /api/admin/users (protected)
+// Mengembalikan list user + jumlah key dan key aktif
+// =============================
+app.get('/api/admin/users', authAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `
+      SELECT
+        u.id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.status,
+        u.created_at,
+        COUNT(k.id) AS total_keys,
+        SUM(
+          CASE
+            WHEN k.expires_at IS NULL THEN 1
+            WHEN k.expires_at > NOW() THEN 1
+            ELSE 0
+          END
+        ) AS active_keys
+      FROM users u
+      LEFT JOIN api_keys k ON k.user_id = u.id
+      GROUP BY
+        u.id, u.first_name, u.last_name, u.email, u.status, u.created_at
+      ORDER BY u.created_at DESC
+      `
+    );
+
+    return res.json({ users: rows });
+  } catch (err) {
+    console.error('Error GET /api/admin/users:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =============================
+// GET /api/admin/api-keys (protected)
+// Mengembalikan list api keys + info user + status active/inactive
+// =============================
+app.get('/api/admin/api-keys', authAdmin, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `
+      SELECT
+        k.id,
+        k.api_key,
+        k.created_at,
+        k.expires_at,
+        u.id AS user_id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        CASE
+          WHEN k.expires_at IS NULL THEN 'active'
+          WHEN k.expires_at > NOW() THEN 'active'
+          ELSE 'inactive'
+        END AS status
+      FROM api_keys k
+      LEFT JOIN users u ON k.user_id = u.id
+      ORDER BY k.created_at DESC
+      `
+    );
+
+    return res.json({ apiKeys: rows });
+  } catch (err) {
+    console.error('Error GET /api/admin/api-keys:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`App berjalan di http://localhost:${PORT}`);
