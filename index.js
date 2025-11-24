@@ -56,48 +56,137 @@ function generateApiKey(prefixRaw) {
   return apiKey;
 }
 
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function toMySQLDateTime(date) {
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
 // =======================
 //  API: Generate API Key
 //  (dipanggil dari front-end)
 // =======================
 app.post('/api/generate-key', async (req, res) => {
   try {
-    const { appName, description, expiry, scopes, prefix } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      appName,
+      description,
+      expiry,
+      scopes,
+      prefix
+    } = req.body;
 
-    if (!appName || typeof appName !== 'string' || appName.trim() === '') {
-      return res.status(400).json({ error: 'appName wajib diisi.' });
+    // ===== VALIDASI SEDERHANA =====
+    if (!firstName || !lastName || !email || !appName) {
+      return res.status(400).json({
+        error: 'firstName, lastName, email, dan appName wajib diisi.'
+      });
     }
 
     const finalScopes =
       Array.isArray(scopes) && scopes.length > 0 ? scopes : ['read'];
 
-    // 1. Generate API key pakai crypto
+    // ===== 1. CARI / BUAT USER BERDASARKAN EMAIL =====
+    let userId;
+    let userRow;
+
+    const [existing] = await db.execute(
+      'SELECT id, first_name, last_name, email, status FROM users WHERE email = ? LIMIT 1',
+      [email]
+    );
+
+    if (existing.length > 0) {
+      // user sudah ada
+      userRow = existing[0];
+      userId = userRow.id;
+
+      // Optional: update nama kalau berubah
+      if (
+        userRow.first_name !== firstName ||
+        userRow.last_name !== lastName
+      ) {
+        await db.execute(
+          'UPDATE users SET first_name = ?, last_name = ? WHERE id = ?',
+          [firstName, lastName, userId]
+        );
+      }
+    } else {
+      // user baru
+      const [insertUser] = await db.execute(
+        'INSERT INTO users (first_name, last_name, email, status) VALUES (?, ?, ?, ?)',
+        [firstName, lastName, email, 'active']
+      );
+      userId = insertUser.insertId;
+      userRow = {
+        id: userId,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        status: 'active'
+      };
+    }
+
+    // ===== 2. HITUNG expires_at =====
+    let expiresAt = null;
+    if (expiry && expiry !== 'never') {
+      const days = parseInt(expiry, 10);
+      if (!Number.isNaN(days) && days > 0) {
+        const now = new Date();
+        expiresAt = addDays(now, days);
+      }
+    }
+
+    const expiresAtStr = expiresAt ? toMySQLDateTime(expiresAt) : null;
+
+    // ===== 3. GENERATE API KEY =====
     const apiKey = generateApiKey(prefix);
 
-    // 2. Simpan ke database
+    // ===== 4. SIMPAN KE TABEL api_keys =====
     const [result] = await db.execute(
-      'INSERT INTO api_keys (api_key) VALUES (?)',
-      [apiKey]
+      'INSERT INTO api_keys (user_id, api_key, expires_at) VALUES (?, ?, ?)',
+      [userId, apiKey, expiresAtStr]
     );
 
     const insertedId = result.insertId;
 
-    // 3. Kirim response ke front-end
+    // Hitung status key saat ini
+    let keyStatus = 'active';
+    if (expiresAt && expiresAt.getTime() < Date.now()) {
+      keyStatus = 'inactive';
+    }
+
+    // ===== 5. RESPONSE KE FRONTEND =====
     return res.status(201).json({
       id: insertedId,
       apiKey,
       appName,
       description: description || '',
-      expiry,
+      expiry,                 // "1", "7", "30", "90", atau "never"
       scopes: finalScopes,
       createdAt: new Date().toISOString(),
-      message: 'API key berhasil dibuat dan disimpan ke database',
+      expiresAt: expiresAtStr,
+      status: keyStatus,
+      user: {
+        id: userRow.id,
+        fullName: `${firstName} ${lastName}`,
+        email,
+        status: userRow.status
+      },
+      message: 'API key berhasil dibuat, user terhubung, dan disimpan ke database'
     });
   } catch (err) {
     console.error('Error /api/generate-key:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // =============================
 //  API: Validate API Key (POST)
