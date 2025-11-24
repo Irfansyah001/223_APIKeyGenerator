@@ -801,6 +801,10 @@
     statusText.dataset.status = "";
     statusText.textContent = "Mengirim permintaan key ke server…";
 
+    const firstName = document.getElementById("firstName").value.trim();
+    const lastName = document.getElementById("lastName").value.trim();
+    const email = document.getElementById("email").value.trim();
+
     const appName = document.getElementById("appName").value.trim();
     const description = document.getElementById("description").value.trim();
     const expiry = document.getElementById("expiry").value;
@@ -819,13 +823,19 @@
       .map((input) => input.parentElement.dataset.scope);
 
     try {
-      // ==========================
-      // PAKAI BACKEND /index.js
-      // ==========================
       const response = await fetch("/api/generate-key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appName, description, expiry, scopes, prefix }),
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          appName,
+          description,
+          expiry,
+          scopes,
+          prefix,
+        }),
       });
 
       if (!response.ok) {
@@ -838,18 +848,14 @@
       }
 
       const data = await response.json();
-      // data datang dari index.js → { apiKey, fingerprint, appName, expiry, scopes, ... }
       const apiKey = data.apiKey;
 
-      // Update UI pakai data dari server
       resultKeyEl.textContent = apiKey;
       resultMetaApp.textContent =
         "Aplikasi: " + (data.appName || appName || "Tidak terdefinisi");
       resultMetaExpiry.textContent =
         "Masa berlaku: " +
-        (data.expiry === "never"
-          ? "Tidak kadaluarsa"
-          : data.expiry + " hari");
+        (data.expiry === "never" ? "Tidak kadaluarsa" : data.expiry + " hari");
 
       btnCopy.disabled = false;
 
@@ -857,14 +863,15 @@
       statusText.textContent = "API key berhasil dibuat dari server.";
       pushActivity(
         `Key baru dari server untuk “${
-          data.appName || appName || "Tanpa nama"
+          data.user?.fullName || data.appName || appName || "Tanpa nama"
         }” dengan scope [${(data.scopes || scopes).join(", ")}]`,
         true
       );
     } catch (err) {
       console.error(err);
       statusText.dataset.status = "error";
-      statusText.textContent = err.message || "Terjadi kesalahan saat generate API key.";
+      statusText.textContent =
+        err.message || "Terjadi kesalahan saat generate API key.";
       pushActivity("Gagal generate API key dari server.", false);
     }
   });
