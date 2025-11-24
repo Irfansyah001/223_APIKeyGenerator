@@ -740,6 +740,25 @@
                 </div>
               </div>
             </div>
+
+            <div class="activity">
+              <div class="activity-header">
+                <span>History API Key (server)</span>
+                <button type="button" class="btn-secondary" id="btn-history-refresh" style="font-size:10px; padding:4px 10px;">
+                  Refresh
+                </button>
+              </div>
+              <div class="activity-list" id="history-list">
+                <div class="activity-item">
+                  <div class="activity-dot"></div>
+                  <div>
+                    <span>Belum ada history. Isi email lalu klik Refresh.</span>
+                    <time>—</time>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
           </aside>
         </section>
       </div>
@@ -756,6 +775,8 @@
   const btnCopy = document.getElementById("btn-copy");
   const btnReset = document.getElementById("btn-reset");
   const activityList = document.getElementById("activity-list");
+  const historyList = document.getElementById("history-list");
+  const btnHistoryRefresh = document.getElementById("btn-history-refresh");
 
   // Toggle scope pill style
   scopeRow.addEventListener("click", (e) => {
@@ -798,6 +819,96 @@
     while (activityList.children.length > 5) {
       activityList.lastChild.remove();
     }
+  }
+
+  // ============================
+  // History API key berdasarkan email (SERVER)
+  // ============================
+  async function loadHistoryByEmail(email) {
+    if (!historyList) return;
+
+    if (!email || email.trim() === "") {
+      historyList.innerHTML = `
+        <div class="activity-item">
+          <div class="activity-dot"></div>
+          <div>
+            <span>Isi email terlebih dahulu untuk melihat history.</span>
+            <time>—</time>
+          </div>
+        </div>`;
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/user/history?email=${encodeURIComponent(email.trim())}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Gagal memuat history dari server.");
+      }
+
+      const data = await response.json();
+      const items = data.apiKeys || [];
+
+      historyList.innerHTML = "";
+
+      if (items.length === 0) {
+        historyList.innerHTML = `
+          <div class="activity-item">
+            <div class="activity-dot"></div>
+            <div>
+              <span>Tidak ada API key untuk email ini.</span>
+              <time>—</time>
+            </div>
+          </div>`;
+        return;
+      }
+
+      const now = new Date();
+
+      items.forEach((item) => {
+        const status =
+          !item.expires_at || new Date(item.expires_at) > now
+            ? "active"
+            : "inactive";
+
+        const created = new Date(item.created_at).toLocaleString("id-ID");
+        const expires = item.expires_at
+          ? new Date(item.expires_at).toLocaleString("id-ID")
+          : "Tidak kadaluarsa";
+
+        const row = document.createElement("div");
+        row.className = "activity-item" + (status === "active" ? " success" : "");
+        row.innerHTML = `
+          <div class="activity-dot"></div>
+          <div>
+            <span><strong>${item.api_key}</strong> — <span style="text-transform:uppercase; font-size:10px;">${status}</span></span>
+            <time>Dibuat: ${created} • Exp: ${expires}</time>
+          </div>
+        `;
+        historyList.appendChild(row);
+      });
+    } catch (err) {
+      console.error(err);
+      historyList.innerHTML = `
+        <div class="activity-item">
+          <div class="activity-dot"></div>
+          <div>
+            <span>${err.message}</span>
+            <time>—</time>
+          </div>
+        </div>`;
+    }
+  }
+
+  // Tombol REFRESH history
+  if (btnHistoryRefresh) {
+    btnHistoryRefresh.addEventListener("click", () => {
+      const emailInput = document.getElementById("email");
+      const email = emailInput ? emailInput.value : "";
+      loadHistoryByEmail(email);
+    });
   }
 
   form.addEventListener("submit", async (e) => {
@@ -871,6 +982,12 @@
         }” dengan scope [${(data.scopes || scopes).join(", ")}]`,
         true
       );
+
+      // setelah berhasil generate, muat ulang history berdasarkan email
+      const emailInputEl = document.getElementById("email");
+      const emailForHistory = emailInputEl ? emailInputEl.value : "";
+      loadHistoryByEmail(emailForHistory);
+
     } catch (err) {
       console.error(err);
       statusText.dataset.status = "error";

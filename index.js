@@ -413,6 +413,60 @@ app.get('/api/admin/api-keys', authAdmin, async (req, res) => {
   }
 });
 
+// =============================
+//  API: History API key per user (by email)
+//  GET /api/user/history?email=...
+// =============================
+app.get('/api/user/history', async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    if (!email || typeof email !== 'string' || email.trim() === '') {
+      return res.status(400).json({ error: 'email wajib diisi.' });
+    }
+
+    const [rows] = await db.execute(
+      `
+      SELECT 
+        ak.id,
+        ak.api_key,
+        ak.created_at,
+        ak.expires_at,
+        u.first_name,
+        u.last_name,
+        u.email
+      FROM api_keys ak
+      JOIN users u ON ak.user_id = u.id
+      WHERE u.email = ?
+      ORDER BY ak.created_at DESC
+      `,
+      [email.trim()]
+    );
+
+    const now = new Date();
+
+    const apiKeys = rows.map((row) => {
+      let status = 'active';
+      if (row.expires_at && new Date(row.expires_at) <= now) {
+        status = 'inactive';
+      }
+
+      return {
+        id: row.id,
+        api_key: row.api_key,
+        created_at: row.created_at,
+        expires_at: row.expires_at,
+        status,
+      };
+    });
+
+    return res.json({ apiKeys });
+  } catch (err) {
+    console.error('Error /api/user/history:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`App berjalan di http://localhost:${PORT}`);
