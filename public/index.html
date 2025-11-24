@@ -559,6 +559,48 @@
           <!-- LEFT: FORM -->
           <article>
             <form id="key-form">
+              <!-- DATA USER -->
+              <div class="inline">
+                <div class="field">
+                  <label class="label" for="firstName">Nama Depan</label>
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    class="input"
+                    type="text"
+                    placeholder="Contoh: Syahiru"
+                    required
+                  />
+                </div>
+                <div class="field">
+                  <label class="label" for="lastName">Nama Belakang</label>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    class="input"
+                    type="text"
+                    placeholder="Contoh: Hidayat"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="label" for="email">Email</label>
+                <input
+                  id="email"
+                  name="email"
+                  class="input"
+                  type="email"
+                  placeholder="Contoh: syahiru@example.com"
+                  required
+                />
+                <p class="helper">
+                  Email digunakan untuk menghubungkan user dengan API key yang dibuat.
+                </p>
+              </div>
+
+              <!-- DATA APLIKASI -->
               <div class="field">
                 <label class="label" for="appName">Nama Aplikasi</label>
                 <input
