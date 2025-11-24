@@ -1,11 +1,16 @@
-// index.js
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');          // untuk generate API key
 const mysql = require('mysql2/promise');   // untuk koneksi MySQL
+const bcrypt = require('bcryptjs');        // untuk hash password admin
+const jwt = require('jsonwebtoken');       // untuk token admin
 
 const app = express();
 const PORT = 3000;
+
+// ======= JWT CONFIG (sederhana dulu) =======
+const JWT_SECRET = 'DEV_SECRET_PWS_123';   // sebaiknya nanti disimpan di .env
+const JWT_EXPIRES_IN = '1h';               // token admin berlaku 1 jam
 
 // Middleware untuk baca JSON body dari fetch() / Postman
 app.use(express.json());
@@ -19,9 +24,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 const db = mysql.createPool({
   host: 'localhost',
   port: 3307,
-  user: 'root',               // ganti sesuai user MySQL kamu
-  password: '1234567',        // ganti password MySQL kamu
-  database: 'praktikum7_pws', // ganti sesuai nama DB yang kamu pakai
+  user: 'root',
+  password: '1234567',
+  database: 'praktikum7_pws',
 });
 
 async function testDbConnection() {
@@ -56,19 +61,31 @@ function generateApiKey(prefixRaw) {
   return apiKey;
 }
 
-function addDays(date, days) {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
+// ===============================
+//  MIDDLEWARE: cek token admin
+//  (akan dipakai nanti untuk GET all users / api_keys)
+// ===============================
+function requireAdminAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
 
-function toMySQLDateTime(date) {
-  return date.toISOString().slice(0, 19).replace("T", " ");
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token tidak ditemukan' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET); // { adminId, email, iat, exp }
+    req.admin = payload;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Token tidak valid atau sudah kadaluarsa' });
+  }
 }
 
 // =======================
 //  API: Generate API Key
-//  (dipanggil dari front-end)
+//  (dipanggil dari front-end user)
 // =======================
 app.post('/api/generate-key', async (req, res) => {
   try {
@@ -80,106 +97,71 @@ app.post('/api/generate-key', async (req, res) => {
       description,
       expiry,
       scopes,
-      prefix
+      prefix,
     } = req.body;
 
-    // ===== VALIDASI SEDERHANA =====
-    if (!firstName || !lastName || !email || !appName) {
-      return res.status(400).json({
-        error: 'firstName, lastName, email, dan appName wajib diisi.'
-      });
+    if (!firstName || !lastName || !email) {
+      return res.status(400).json({ error: 'firstName, lastName, dan email wajib diisi.' });
+    }
+
+    if (!appName || typeof appName !== 'string' || appName.trim() === '') {
+      return res.status(400).json({ error: 'appName wajib diisi.' });
     }
 
     const finalScopes =
       Array.isArray(scopes) && scopes.length > 0 ? scopes : ['read'];
 
-    // ===== 1. CARI / BUAT USER BERDASARKAN EMAIL =====
-    let userId;
-    let userRow;
-
+    // ===== 1. Cari atau buat user =====
     const [existing] = await db.execute(
-      'SELECT id, first_name, last_name, email, status FROM users WHERE email = ? LIMIT 1',
+      'SELECT id FROM users WHERE email = ? LIMIT 1',
       [email]
     );
 
-    if (existing.length > 0) {
-      // user sudah ada
-      userRow = existing[0];
-      userId = userRow.id;
+    let userId;
 
-      // Optional: update nama kalau berubah
-      if (
-        userRow.first_name !== firstName ||
-        userRow.last_name !== lastName
-      ) {
-        await db.execute(
-          'UPDATE users SET first_name = ?, last_name = ? WHERE id = ?',
-          [firstName, lastName, userId]
-        );
-      }
+    if (existing.length > 0) {
+      userId = existing[0].id;
     } else {
-      // user baru
       const [insertUser] = await db.execute(
         'INSERT INTO users (first_name, last_name, email, status) VALUES (?, ?, ?, ?)',
         [firstName, lastName, email, 'active']
       );
       userId = insertUser.insertId;
-      userRow = {
-        id: userId,
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        status: 'active'
-      };
     }
 
-    // ===== 2. HITUNG expires_at =====
+    // ===== 2. Generate API key =====
+    const apiKey = generateApiKey(prefix);
+
+    // Hitung expires_at
     let expiresAt = null;
     if (expiry && expiry !== 'never') {
       const days = parseInt(expiry, 10);
       if (!Number.isNaN(days) && days > 0) {
         const now = new Date();
-        expiresAt = addDays(now, days);
+        now.setDate(now.getDate() + days);
+        expiresAt = now; // object Date
       }
     }
 
-    const expiresAtStr = expiresAt ? toMySQLDateTime(expiresAt) : null;
-
-    // ===== 3. GENERATE API KEY =====
-    const apiKey = generateApiKey(prefix);
-
-    // ===== 4. SIMPAN KE TABEL api_keys =====
+    // ===== 3. Simpan ke tabel api_keys =====
     const [result] = await db.execute(
       'INSERT INTO api_keys (user_id, api_key, expires_at) VALUES (?, ?, ?)',
-      [userId, apiKey, expiresAtStr]
+      [userId, apiKey, expiresAt]
     );
 
     const insertedId = result.insertId;
 
-    // Hitung status key saat ini
-    let keyStatus = 'active';
-    if (expiresAt && expiresAt.getTime() < Date.now()) {
-      keyStatus = 'inactive';
-    }
-
-    // ===== 5. RESPONSE KE FRONTEND =====
     return res.status(201).json({
       id: insertedId,
+      userId,
       apiKey,
       appName,
       description: description || '',
-      expiry,                 // "1", "7", "30", "90", atau "never"
+      expiry,
+      expiresAt,
       scopes: finalScopes,
       createdAt: new Date().toISOString(),
-      expiresAt: expiresAtStr,
-      status: keyStatus,
-      user: {
-        id: userRow.id,
-        fullName: `${firstName} ${lastName}`,
-        email,
-        status: userRow.status
-      },
-      message: 'API key berhasil dibuat, user terhubung, dan disimpan ke database'
+      message: 'API key berhasil dibuat dan disimpan ke database',
     });
   } catch (err) {
     console.error('Error /api/generate-key:', err);
@@ -187,11 +169,8 @@ app.post('/api/generate-key', async (req, res) => {
   }
 });
 
-
 // =============================
 //  API: Validate API Key (POST)
-//  body: { "apiKey": "..." }
-//  (dipakai di Postman)
 // =============================
 app.post('/api/validate-key', async (req, res) => {
   try {
@@ -201,9 +180,8 @@ app.post('/api/validate-key', async (req, res) => {
       return res.status(400).json({ error: 'apiKey wajib diisi.' });
     }
 
-    // Cek apakah apiKey ada di tabel
     const [rows] = await db.execute(
-      'SELECT id, api_key, created_at FROM api_keys WHERE api_key = ? LIMIT 1',
+      'SELECT id, user_id, api_key, created_at, expires_at FROM api_keys WHERE api_key = ? LIMIT 1',
       [apiKey]
     );
 
@@ -214,15 +192,126 @@ app.post('/api/validate-key', async (req, res) => {
       });
     }
 
+    const apiRow = rows[0];
+    let status = 'active';
+
+    if (apiRow.expires_at) {
+      const now = new Date();
+      const expires = new Date(apiRow.expires_at);
+      if (expires < now) {
+        status = 'inactive';
+      }
+    }
+
     return res.json({
-      valid: true,
-      id: rows[0].id,
-      apiKey: rows[0].api_key,
-      createdAt: rows[0].created_at,
-      message: 'API key valid',
+      valid: status === 'active',
+      status,
+      id: apiRow.id,
+      userId: apiRow.user_id,
+      apiKey: apiRow.api_key,
+      createdAt: apiRow.created_at,
+      expiresAt: apiRow.expires_at,
+      message:
+        status === 'active'
+          ? 'API key masih aktif'
+          : 'API key sudah kadaluarsa / inactive',
     });
   } catch (err) {
     console.error('Error /api/validate-key:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+// =======================================
+//  API: ADMIN REGISTER  (POST /api/admin/register)
+// =======================================
+app.post('/api/admin/register', async (req, res) => {
+  try {
+    const { email, password, confirmPassword } = req.body;
+
+    if (!email || !password || !confirmPassword) {
+      return res.status(400).json({ error: 'email, password, dan confirmPassword wajib diisi.' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password minimal 6 karakter.' });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Konfirmasi password tidak cocok.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    try {
+      const [result] = await db.execute(
+        'INSERT INTO admins (email, password_hash) VALUES (?, ?)',
+        [email, passwordHash]
+      );
+
+      return res.status(201).json({
+        id: result.insertId,
+        email,
+        message: 'Admin berhasil didaftarkan.',
+      });
+    } catch (err) {
+      // cek kalau email sudah dipakai
+      if (err.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ error: 'Email admin sudah terdaftar.' });
+      }
+      throw err;
+    }
+  } catch (err) {
+    console.error('Error /api/admin/register:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =======================================
+//  API: ADMIN LOGIN  (POST /api/admin/login)
+// =======================================
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'email dan password wajib diisi.' });
+    }
+
+    const [rows] = await db.execute(
+      'SELECT id, email, password_hash FROM admins WHERE email = ? LIMIT 1',
+      [email]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Email atau password salah.' });
+    }
+
+    const admin = rows[0];
+
+    const passwordMatch = await bcrypt.compare(password, admin.password_hash);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Email atau password salah.' });
+    }
+
+    // Buat token
+    const token = jwt.sign(
+      { adminId: admin.id, email: admin.email },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    return res.json({
+      token,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+      },
+      message: 'Login berhasil.',
+    });
+  } catch (err) {
+    console.error('Error /api/admin/login:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
