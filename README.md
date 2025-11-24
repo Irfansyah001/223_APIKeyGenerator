@@ -1,20 +1,23 @@
-## UI API Key Generator website 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/6e8dab31-9aca-45d8-94f3-4d3e4003f444" />
+## 1. Halaman API Key Generator – State Awal (Belum Ada Key)
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/65efbd67-1895-46f7-a37c-5bdcb0dd9204" />
 
-## endpoint POST /api/generate-key
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/e304698c-edff-4178-8e77-e6b8ede772cd" />
+## 2. Halaman API Key Generator – Berhasil Generate & History dari Server
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/6802b572-0bf4-4806-98ff-8840590c7e31" />
 
-## database praktikum7_pws tabel api_keys 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/418c8454-10aa-46df-b3ee-99d9d99fc514" />
+## 3. Admin Console – Halaman Login Admin
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/77b795be-ec71-4c41-a096-c8050424f1d8" />
 
-## validateion POST /api/validate-key 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/bc221f11-6237-4467-a31f-e0e7228b0620" />
+## 4. Admin Console – Halaman Registrasi Admin Baru
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9a9e5fd4-aaf5-48de-b7b9-47e5792bb08d" />
 
-## endpoint POST /api/generate-key if failed
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/b38a3583-c524-460a-bff2-7544680b8ffa" />
+## 5. Admin Console – Dashboard Admin (Daftar User & API Key)
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/322eb0d1-3c39-4507-8475-89ceee9f954e" />
 
-## endpoint POST /api/validate-key if failed
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/84438f5a-8435-4323-8aed-10b958d429b9" />
+## 6. Database View – Tabel api_keys
+<img width="1099" height="497" alt="image" src="https://github.com/user-attachments/assets/e2167fcc-6799-426e-9801-726586c3616e" />
 
-## endpoint POST /api/validate-key if apikey empty
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/a5444aac-be1b-437f-ba37-8e2c245a217b" />
+## 7. Database View – Tabel admins
+<img width="1090" height="406" alt="image" src="https://github.com/user-attachments/assets/037092c7-032f-4843-83a1-c4a1b5446445" />
+
+## 8. Database View – Tabel users
+<img width="1091" height="404" alt="image" src="https://github.com/user-attachments/assets/1eb32c1d-bdc3-4124-acfe-efb0e12fb8ed" />
